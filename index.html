@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NeuralByte</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: #0e0e0e;
+      color: #ffffff;
+    }
+
+    header {
+      background-color: #1a1a1a;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+      font-weight: bold;
+    }
+
+    nav a {
+      margin-left: 25px;
+      color: #ccc;
+      text-decoration: none;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    nav a:hover {
+      color: #ffffff;
+    }
+
+    main {
+      padding: 100px 40px;
+      text-align: center;
+    }
+
+    h1 {
+      font-size: 3rem;
+      margin-bottom: 20px;
+    }
+
+    p {
+      font-size: 1.2rem;
+      color: #bbbbbb;
+    }
+
+    /* Popup */
+    #popup {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      padding: 15px 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #000;
+      opacity: 0;
+      pointer-events: none;  /* qui: disabilitiamo interazioni quando nascosto */
+      transition: opacity 0.3s ease;
+      z-index: 999;
+    }
+
+    #popup.show {
+      opacity: 1;
+      pointer-events: auto; /* abilitiamo interazioni quando visibile */
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">NeuralByte</div>
+    <nav>
+      <a onclick="showPopup()">Home</a>
+      <a onclick="showPopup()">Prodotti</a>
+      <a onclick="showPopup()">Servizi</a>
+      <a onclick="showPopup()">Supporto</a>
+      <a href="accedi.html">Accedi</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Benvenuto su NeuralByte</h1>
+    <p>Soluzioni intelligenti per il mondo di domani.<br>
+       Scopri come possiamo rivoluzionare insieme la tecnologia.</p>
+  </main>
+
+  <div id="popup">⚠️ Sito in manutenzione</div>
+
+  <script>
+    function showPopup() {
+      const popup = document.getElementById('popup');
+      popup.classList.add('show');
+      setTimeout(() => {
+        popup.classList.remove('show');
+      }, 2000);
+    }
+  </script>
+
+</body>
+</html>

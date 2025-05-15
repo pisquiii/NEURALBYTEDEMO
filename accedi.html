@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Accedi - NeuralByte</title>
+  <style>
+    body {
+      background-color: #0e0e0e;
+      color: #fff;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    form {
+      background-color: #1a1a1a;
+      padding: 30px;
+      border-radius: 10px;
+      width: 320px;
+      box-shadow: 0 0 10px #000;
+    }
+
+    h2 {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    input[type="email"] {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 1rem;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background-color: #0f62fe;
+      border: none;
+      border-radius: 6px;
+      color: white;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #0353e9;
+    }
+
+    #status {
+      margin-top: 15px;
+      text-align: center;
+      font-weight: 600;
+      height: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <form id="emailForm">
+    <h2>Accedi a NeuralByte</h2>
+    <label for="userEmail">Inserisci la tua email</label>
+    <input type="email" id="userEmail" name="userEmail" required placeholder="esempio@mail.com" />
+    <button type="submit">Invia email</button>
+    <div id="status"></div>
+  </form>
+
+  <script>
+    const form = document.getElementById('emailForm');
+    const statusDiv = document.getElementById('status');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const userEmail = form.userEmail.value.trim();
+
+      if (!userEmail) {
+        statusDiv.textContent = "Inserisci una email valida.";
+        statusDiv.style.color = "red";
+        return;
+      }
+
+      // Creiamo un mailto: per aprire il client email
+      const subject = encodeURIComponent("Benvenuto su NeuralByte");
+      const body = encodeURIComponent("Ciao! Questa è una email automatica da NeuralByte.");
+      const mailtoLink = `mailto:${userEmail}?subject=${subject}&body=${body}`;
+
+      // Apri il client email
+      window.location.href = mailtoLink;
+
+      statusDiv.textContent = "Aperta la tua app mail per inviare l'email.";
+      statusDiv.style.color = "green";
+
+      form.reset();
+    });
+  </script>
+
+</body>
+</html>
