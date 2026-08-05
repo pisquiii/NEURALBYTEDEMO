@@ -73,7 +73,7 @@ async def main():
         #open          4240.01     → prezzo apertura
         #high          4246.52     → massimo raggiunto
         #low           4237.27     → minimo raggiunto
-        ##close         4244.90     → chiusura
+        ##close         4244.90    → chiusura
         #tick_volume   2216        → numero movimenti prezzo
         #spread        9           → spread in punti
         #real_volume   0           → volume reale non disponibile
@@ -97,3 +97,7 @@ if not mt5.initialize():
 
 elif __name__ == "__main__":
     asyncio.run(main())
+
+
+
+    
