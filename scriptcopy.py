@@ -64,10 +64,33 @@ async def main():
     rates = mt5.copy_rates_from_pos(
         "XAUUSD",          # simbolo
         mt5.TIMEFRAME_M5,  # timeframe
-        0,                 # da quale candela partire
-        100                # numero candele
+        1,                 # da quale candela partire
+        1              # numero candele
     )
-    #print(rates[-1] ) #candela corrente
+    high = rates[0]["high"]
+    low = rates[0]["low"]
+    close = rates[0]["close"]
+    bid = mt5.symbol_info_tick("XAUUSD").bid
+
+    range_high_close = high - close
+    range_low_close = close - low
+    min_power_to_go_high = 100/range_high_close
+    min_power_to_go_low = 100/range_low_close
+
+    actual_pos_resepct_pre_high = high - bid
+    actual_pos_resepct_pre_low = close - bid
+
+    percent_to_high = actual_pos_resepct_pre_high/range_high_close*100
+    percent_to_low = actual_pos_resepct_pre_low/range_low_close*100
+
+    print(percent_to_high,"\n",  percent_to_low)
+
+
+
+    
+
+
+    #print(rates[-1]) #candela corrente
     #for candle in rates:
         #time          1785961500  → apertura candela
         #open          4240.01     → prezzo apertura
@@ -100,4 +123,3 @@ elif __name__ == "__main__":
 
 
 
-    
