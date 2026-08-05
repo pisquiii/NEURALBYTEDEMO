@@ -18,7 +18,7 @@ magic_index = 0
 receipts = []
 tasks = []
 open_positions = []
-
+#AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
 class signal_state(IntEnum):
     pending = 1
@@ -59,8 +59,6 @@ class ORDER(IntEnum): #ACTIONS
 #region  ------------------------------------------ FUNCTIONS ----------------------------------------
 #-----------------------------------------------------------------------------------------------------
 #-------------------------------------------- Parser function
-
-def AUTO_signal_modifier(event, id_chat): pass
 
 def AUTO_signal_creator(event, magic):
     #--------------------------------------- vars
