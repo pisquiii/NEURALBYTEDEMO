@@ -36,13 +36,15 @@ class MARKET_STATES(IntEnum):
     REVERSAL = 7
 
 class signal_state(IntEnum):
-    pending = 1
-    in_progress = 2
-    executed = 3
-    delated = 4
-    closed = 5
-    change = 6
-    stop = 7
+    pending = 1 #in attesa di richiedere l'ordine
+    in_progress = 2 #in attesa di effettuare l'ordine
+    executed = 3 #l'ordine è eseguito, il buy / sell è stato lanciato e l'operazione è partita
+    delated = 4 #l'ordine è stato eliminato
+    closed = 5 #l'ordine è stato chiuso (con profit / stop loss oppure forzatamente (con il BE))
+    change_SL= 6 #viene effettuata una richiesta di change dello stop loss
+    change_tP = 7 #viene effettuata una richiesta di change del take profit
+    be_closing = 8 #si costringe a chiusura
+    forcing_operation = 9 #si costringe ad apertura
 
 class ORDER(IntEnum): #ACTIONS
     ACT_INSTANT = mt5.TRADE_ACTION_DEAL #ordine immediato a mercato
@@ -70,8 +72,8 @@ class ORDER(IntEnum): #ACTIONS
     IMMEDIATE_OR_CANCEL = mt5.ORDER_FILLING_IOC	#Immediate or Cancel: esegue la parte disponibile immediatamente e annulla il resto.
     FILLING_RETURN = mt5.ORDER_FILLING_RETURN #	Return: se non può essere eseguito completamente, la parte rimanente resta attiva (quando supportato dal broker).
 
-
-
+    POS_BUY = mt5.POSITION_TYPE_BUY
+    POS_SELL = mt5.POSITION_TYPE_SELL
 
 #region  ------------------------------------------ FUNCTIONS ----------------------------------------
 #-----------------------------------------------------------------------------------------------------
@@ -80,20 +82,30 @@ class ORDER(IntEnum): #ACTIONS
 def AUTO_change_creator(event): 
     mess = event.text.lower()
     risp_mess = event.message.reply_to_msg_id
-    if signals == []: return None
+    print(mess)
+    print(risp_mess)
+    print(signals)
+    if signals == []: return 
 
     for signal in signals:
+
         if signal["mess_id"] == risp_mess:
-            if "be" in mess: 
-                if "hit" in mess or ("out" in mess and "at" in mess) or ("out" in mess and "to" in mess):
-                    signal["STATE"] = signal_state.stop
+            if "active" == mess:
+                if signal["STATE"] == signal_state.pending:
+                    signal["STATE"] = signal_state.forcing_operation
+
+
+            if "if" not in mess:
+                if "be" in mess: 
+                    if "hit" in mess or ("out" in mess and "at" in mess) or ("out" in mess and "to" in mess):
+                        signal["STATE"] = signal_state.be_closing
 
             if "sl" in mess: 
-                if "set" in mess and "to" in mess:
-                    signal["SLs"][0] = (float(re.search(r"\d+(?:\.\d+)?", mess).group()))
-                    signal["STATE"] = signal_state.change
+                if "set" in mess and "to" in mess: pass
+                    #signal["SLs"][0] = (float(re.search(r"\d+(?:\.\d+)?", mess).group()))
+                    #signal["STATE"] = signal_state.change_SL
 
-        return None
+    return 
     
 def AUTO_signal_creator(event, magic):
     #--------------------------------------- vars
@@ -115,12 +127,9 @@ def AUTO_signal_creator(event, magic):
         "TPs" : [],
         "SLs" : [],
             #meta data
-        "id_signal" : event.message.id,
         "real_signal" : False,
         "STATE": signal_state.pending,
         "magic": magic,
-        "index_operation": 0,
-        "price" : 0,
         "mess_id" : event.message.id
     }
 
@@ -137,7 +146,7 @@ def AUTO_signal_creator(event, magic):
         text = text.replace("\xa0", "")
 
         # SYMBOL
-        if "XAUUSD" in text: signal["symbol"] = text
+        if "XAUUSD" in text: signal["symbol"] = text+"pm"
 
         # BUY / SELL
         if "BUY" in text or "SELL" in text: signal["type"] = text
@@ -147,7 +156,7 @@ def AUTO_signal_creator(event, magic):
         if "Stop" in text or "STOP" in text or "stop" in text: signal["stop"] = True
 
         # ENTER ZONE
-        Enter_Zone = [float(EZ_val) for EZ_val in re.split(r"[_-]", text) if EZ_val.isdigit()]
+        Enter_Zone = [float(EZ_val) for EZ_val in re.findall(r"\d+(?:\.\d+)?", text)]
 
     if signal["symbol"] == "" or signal["type"] == "": return None
     if not Enter_Zone: return None
@@ -172,6 +181,26 @@ def AUTO_signal_creator(event, magic):
     return signal
 
 #---------------------------------- Request creation function
+
+def make_close_request(position, price, deviation, lot = 0.01):
+    print(position[0], price, deviation)
+    req = {
+        "action": ORDER.ACT_INSTANT,
+        "position": position[0].ticket,
+        "symbol": position[0].symbol,
+        "volume": lot,
+        "type": position[0].type,
+        "price": price,
+        "deviation": deviation
+    }
+
+    print(req)
+    print("dkdkl")
+
+    if position[0].type == ORDER.POS_BUY: req["type"] = ORDER.SELL
+    if position[0].type == ORDER.POS_SELL: req["type"] = ORDER.BUY
+    print(req)
+    return req
 
 def make_request(signal, price, sl, tp, deviation, magic,
                  lot = 0.01,
@@ -271,27 +300,46 @@ async def metatrader_connection(signal):
     current_price = None
     position = None
     sl_modified = False
-    while signal["STATE"] == signal_state.pending: 
-        print("aaa")
+    print("ERROR:", mt5.last_error())
+    print(mt5.terminal_info())
+    while signal["STATE"] == signal_state.pending: #SI ATTENDE CHE LA RICHIESTA DELL'ORDINE VENGA EFFETTUATA
         await asyncio.sleep(0.5)
+
         tick = mt5.symbol_info_tick(signal["symbol"])
         ask = tick.ask
         bid = tick.bid
 
         if signal["limit"] or signal["stop"]:
-            req = make_request(signal, signal["EZ_min_val"], signal["SLs"][0], signal["TPs"][0], 20, signal["magic"])
+            req = make_request(signal, signal["EZ_min_val"] + (signal["EZ_max_val"] - signal["EZ_min_val"])/2, signal["SLs"][0], signal["TPs"][1], 20, signal["magic"])
            
         elif signal["type"] == "BUY":
             if ask < float(signal["EZ_min_val"]) or ask > float(signal["EZ_max_val"]):
                 continue
 
-            req = make_request(signal, ask, signal["SLs"][0], signal["TPs"][0], 20, signal["magic"])    
+            req = make_request(signal, ask, signal["SLs"][0], signal["TPs"][1], 20, signal["magic"])    
 
         elif signal["type"] == "SELL":
             if bid < signal["EZ_min_val"] or bid > signal["EZ_max_val"]:
                 continue
 
-            req = make_request(signal, bid, signal["SLs"][0], signal["TPs"][0], 20, signal["magic"])
+            req = make_request(signal, bid, signal["SLs"][0], signal["TPs"][1], 20, signal["magic"])
+
+        receipt = mt5.order_send(req)
+        print(receipt)
+        print(mt5.last_error())
+        if receipt == None: 
+            continue
+        if receipt.retcode == mt5.TRADE_RETCODE_DONE:
+            print(receipt)
+            signal["STATE"] = signal_state.in_progress #LA RICHIESTA DELL'ORDINE E' STATA EFFETTUATA
+        receipts.append(receipt)
+
+    while signal["STATE"] == signal_state.forcing_operation:
+        if signal["type"] == "BUY":
+            req = make_request(signal, ask, signal["SLs"][0], signal["TPs"][1], 20, signal["magic"])    
+
+        elif signal["type"] == "SELL":
+            req = make_request(signal, bid, signal["SLs"][0], signal["TPs"][1], 20, signal["magic"])
 
         receipt = mt5.order_send(req)
 
@@ -299,70 +347,52 @@ async def metatrader_connection(signal):
             continue
         if receipt.retcode == mt5.TRADE_RETCODE_DONE:
             print(receipt)
-            signal["STATE"] = signal_state.in_progress
+            signal["STATE"] = signal_state.in_progress #LA RICHIESTA DELL'ORDINE E' STATA EFFETTUATA
         receipts.append(receipt)
 
-    while signal["STATE"] == signal_state.in_progress:
+        
+    while signal["STATE"] == signal_state.in_progress: #SI ATTENDE CHE L'ORDINE VENGA EFFETTUATO
         await asyncio.sleep(1)
-        position = mt5.positions_get(magic=signal["magic"])
+        position = mt5.positions_get(magic=signal["magic"]) #recuperiamo le info dell'ordine
         if position == None: continue 
 
-        signal["STATE"] = signal_state.executed
+        signal["STATE"] = signal_state.executed #L'ORDINE E' STATO EFFETTUATO
         break
 
-    while signal["STATE"] == signal_state.executed:
+    while signal["STATE"] == signal_state.executed: #SI ATTENDE CHE L'ORDINE GIUNGA AL SUO COMPLETAMENTO CON LA CHIUSURA
         await asyncio.sleep(0.8)
-        if sl_modified == False:
-            current_price = mt5.positions_get(magic=signal["magic"])[0].price_current
-
-
-            if signal["type"] == "BUY":
-                if (current_price - position[0].price_open)> (signal["TPs"][0] - position[0].price_open)/2:
-                    res = set_sl_tp(position[0].price_open + float(2), signal["TPs"][0],position[0].ticket, position[0].symbol)
-                    if res:
-                        sl_modified = True
-                    else: mt5.last_error()
-
-            
-            if signal["type"] == "SELL":
-                if (position[0].price_open - current_price) > (position[0].price_open - signal["TPs"][0])/2:
-                    res = set_sl_tp(position[0].price_open - float(2), signal["TPs"][0], position[0].ticket, position[0].symbol)
-                    if res:
-                        sl_modified = True
-                    else: mt5.last_error()
-
-    while signal["STATE"] == signal_state.stop:
-        tick = mt5.symbol_info_tick(signal["symbol"])
-        price = 0
-        close_type = 0
-        print("SONO IN STOP")
-        symbol = position.symbol
-        volume = position.volume
-        print(volume)
-        if signal["type"] == "BUY":
-            close_type = ORDER.SELL
-            price = tick.bid
-
-        if signal["type"] == "SELL":
-            close_type = ORDER.BUY
-            price = tick.ask
-
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol,
-            "volume": volume,
-            "type": close_type,
-            "position": position.ticket,
-            "price": price,
-            "deviation": 100,
-            "comment": "close position"
-        }
+        position = mt5.positions_get(magic=signal["magic"])
+        if position == None: signal["STATE"] = signal_state.closed
         
-        result = mt5.order_send(request)
-        if result != None: signal["STATE"] = signal_state.closed
 
-        print(result)
-            
+    while signal["STATE"] == signal_state.be_closing:
+        print("sono in chiusura")
+        tick = mt5.symbol_info_tick(signal["symbol"])
+        ask = tick.ask
+        bid = tick.bid
+
+        if signal["type"] == "BUY":
+            print("è un buy")
+            req = make_close_request(position, ask, 20)
+            print(req)
+        if signal["type"] == "SELL":
+            print("è un sell")
+            req = make_close_request(position, bid, 20)
+            print(req)
+
+        receipt = mt5.order_send(req)
+        
+        if receipt == None: 
+            continue
+        
+        if receipt.retcode == mt5.TRADE_RETCODE_DONE:
+            signal["STATE"] = signal_state.closed
+
+
+
+    if signal["STATE"] == signal_state.closed: #SE L'ORDINE E' CHIUSO, CHIUDIAMO IL TASK ASYNC
+            print("UIRRUIIUR")
+            return    
 
 #region  -------------------------------------- TELEGRAM CONNECTION ----------------------------------
 #-----------------------------------------------------------------------------------------------------
@@ -392,7 +422,7 @@ async def handler(event):
         Magic = Magic +1
         print(tasks)
     else:
-        change = AUTO_change_creator(event)
+        AUTO_change_creator(event)
 
 
 
