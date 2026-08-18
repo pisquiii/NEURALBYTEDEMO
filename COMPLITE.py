@@ -298,6 +298,7 @@ def set_sl_tp(sl, tp, pos_ticket, pos_symbol):
 
 async def metatrader_connection(signal):
     current_price = None
+    sl_modified = False
     position = None
     sl_modified = False
     print("ERROR:", mt5.last_error())
@@ -363,6 +364,26 @@ async def metatrader_connection(signal):
         await asyncio.sleep(0.8)
         position = mt5.positions_get(magic=signal["magic"])
         if position == None: signal["STATE"] = signal_state.closed
+
+        if sl_modified == True: continue
+
+        current_price = position[0].price_current
+
+        if signal["type"] == "BUY":
+            if current_price >= signal["TPs"][0]:
+                res = set_sl_tp(position[0].price_open + float(2), signal["TPs"][1],position[0].ticket, position[0].symbol)
+                if res:
+                    sl_modified = True
+                else: mt5.last_error()
+
+        
+        if signal["type"] == "SELL":
+            if current_price <= signal["TPs"][0]:
+                res = set_sl_tp(position[0].price_open - float(2), signal["TPs"][1], position[0].ticket, position[0].symbol)
+                if res:
+                    sl_modified = True
+                else: mt5.last_error()
+
         
 
     while signal["STATE"] == signal_state.be_closing:
@@ -423,8 +444,6 @@ async def handler(event):
         print(tasks)
     else:
         AUTO_change_creator(event)
-
-
 
 
 
